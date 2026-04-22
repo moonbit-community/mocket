@@ -130,6 +130,11 @@ pub(all) enum StatusCode {
 } derive(Debug, ToJson, Eq)
 
 ///|
+pub impl Show for StatusCode with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
+
+///|
 pub fn StatusCode::from_int(i : Int) -> StatusCode {
   Custom(i)
 }

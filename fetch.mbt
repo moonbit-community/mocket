@@ -12,11 +12,21 @@ pub(all) enum HttpMethod {
 } derive(Eq, Debug)
 
 ///|
+pub impl Show for HttpMethod with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
+
+///|
 pub(all) enum FetchCredentials {
   Omit
   SameOrigin
   Include
 } derive(Eq, Debug)
+
+///|
+pub impl Show for FetchCredentials with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
 
 ///|
 pub fn FetchCredentials::to_string(self : FetchCredentials) -> String {
@@ -36,6 +46,11 @@ pub(all) enum FetchMode {
 } derive(Eq, Debug)
 
 ///|
+pub impl Show for FetchMode with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
+
+///|
 pub fn FetchMode::to_string(self : FetchMode) -> String {
   match self {
     Cors => "cors"
@@ -49,6 +64,11 @@ pub fn FetchMode::to_string(self : FetchMode) -> String {
 pub suberror FetchError {
   RequestFailed(String)
 } derive(Debug)
+
+///|
+pub impl Show for FetchError with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
 
 ///|
 fn copy_headers(headers : Map[String, String]) -> Map[String, String] {

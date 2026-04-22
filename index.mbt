@@ -49,6 +49,11 @@ pub(all) enum SameSiteOption {
 } derive(Debug, Eq)
 
 ///|
+pub impl Show for SameSiteOption with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
+
+///|
 pub impl ToJson for SameSiteOption with to_json(self : SameSiteOption) -> Json {
   match self {
     Lax => "lax"

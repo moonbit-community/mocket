@@ -7,11 +7,21 @@ pub enum Host {
 } derive(Eq, Debug)
 
 ///|
+pub impl Show for Host with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
+
+///|
 pub struct Authority {
   mut userinfo : BytesView?
   mut host : Host
   mut port : Int?
 } derive(Eq, Debug)
+
+///|
+pub impl Show for Authority with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
 
 ///|
 pub struct Uri {
@@ -21,6 +31,11 @@ pub struct Uri {
   mut query : BytesView?
   mut fragment : BytesView?
 } derive(Eq, Debug)
+
+///|
+pub impl Show for Uri with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
 
 ///|
 pub suberror ParseError {

@@ -6,6 +6,11 @@ priv struct ContentType {
 } derive(Debug)
 
 ///|
+impl Show for ContentType with output(self, logger) -> Unit {
+  to_repr(self).output(logger)
+}
+
+///|
 fn parse_content_type(s : StringView) -> ContentType? {
   fn dequote(value : StringView) -> StringView {
     if value is ['"', .. rest, '"'] {
