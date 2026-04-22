@@ -3,6 +3,7 @@ package "oboard/mocket"
 
 import {
   "moonbitlang/core/buffer",
+  "moonbitlang/core/debug",
   "oboard/mocket/native",
 }
 
@@ -56,18 +57,18 @@ pub fn ws_subscribe(String, String) -> Unit
 pub fn ws_unsubscribe(String, String) -> Unit
 
 // Errors
-pub suberror ExecError
+pub suberror ExecError derive(@debug.Debug)
 pub impl Show for ExecError
 
 pub suberror FetchError {
   RequestFailed(String)
-}
+} derive(@debug.Debug)
 pub impl Show for FetchError
 
-pub suberror IOError
+pub suberror IOError derive(@debug.Debug)
 pub impl Show for IOError
 
-pub suberror NetworkError
+pub suberror NetworkError derive(@debug.Debug)
 pub impl Show for NetworkError
 
 // Types and methods
@@ -80,17 +81,15 @@ pub(all) struct CookieItem {
   secure : Bool?
   http_only : Bool?
   same_site : SameSiteOption?
-}
-pub impl Eq for CookieItem
+} derive(Eq)
 pub impl Show for CookieItem
 
 pub(all) enum FetchCredentials {
   Omit
   SameOrigin
   Include
-}
+} derive(Eq, @debug.Debug)
 pub fn FetchCredentials::to_string(Self) -> String
-pub impl Eq for FetchCredentials
 pub impl Show for FetchCredentials
 
 pub(all) enum FetchMode {
@@ -98,9 +97,8 @@ pub(all) enum FetchMode {
   NoCors
   SameOrigin
   Navigate
-}
+} derive(Eq, @debug.Debug)
 pub fn FetchMode::to_string(Self) -> String
-pub impl Eq for FetchMode
 pub impl Show for FetchMode
 
 type Html
@@ -116,8 +114,7 @@ pub(all) enum HttpMethod {
   OPTIONS
   TRACE
   CONNECT
-}
-pub impl Eq for HttpMethod
+} derive(Eq, @debug.Debug)
 pub impl Show for HttpMethod
 
 pub(all) struct HttpRequest {
@@ -202,8 +199,7 @@ pub(all) enum SameSiteOption {
   Lax
   Strict
   SameSiteNone
-}
-pub impl Eq for SameSiteOption
+} derive(Eq, @debug.Debug)
 pub impl Show for SameSiteOption
 pub impl ToJson for SameSiteOption
 
@@ -281,12 +277,10 @@ pub(all) enum StatusCode {
   NotExtended
   NetworkAuthenticationRequired
   Custom(Int)
-}
+} derive(Eq, ToJson, @debug.Debug)
 pub fn StatusCode::from_int(Int) -> Self
 pub fn StatusCode::to_int(Self) -> Int
-pub impl Eq for StatusCode
 pub impl Show for StatusCode
-pub impl ToJson for StatusCode
 
 pub enum WebSocketAggregatedMessage {
   Text(String)
