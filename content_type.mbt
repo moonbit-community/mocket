@@ -3,7 +3,7 @@ priv struct ContentType {
   media_type : StringView
   subtype : StringView
   params : Map[StringView, StringView]
-} derive(Show)
+} derive(Debug)
 
 ///|
 fn parse_content_type(s : StringView) -> ContentType? {

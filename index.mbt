@@ -46,7 +46,7 @@ pub(all) enum SameSiteOption {
   Lax
   Strict
   SameSiteNone
-} derive(Show, Eq)
+} derive(Debug, Eq)
 
 ///|
 pub impl ToJson for SameSiteOption with to_json(self : SameSiteOption) -> Json {

@@ -4,14 +4,14 @@
 pub enum Host {
   IPv6Address(BytesView)
   RegName(BytesView)
-} derive(Eq, Show)
+} derive(Eq, Debug)
 
 ///|
 pub struct Authority {
   mut userinfo : BytesView?
   mut host : Host
   mut port : Int?
-} derive(Eq, Show)
+} derive(Eq, Debug)
 
 ///|
 pub struct Uri {
@@ -20,7 +20,7 @@ pub struct Uri {
   path : Array[BytesView]
   mut query : BytesView?
   mut fragment : BytesView?
-} derive(Eq, Show)
+} derive(Eq, Debug)
 
 ///|
 pub suberror ParseError {
