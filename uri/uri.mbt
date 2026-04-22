@@ -566,7 +566,11 @@ test "RFC 3986 URI Reference Parsing" {
   assert_eq(uri.scheme, Some(b"http"))
   assert_eq(
     uri.authority,
-    Some(Authority::{ userinfo: None, host: RegName(b"example.com"), port: None }),
+    Some(Authority::{
+      userinfo: None,
+      host: RegName(b"example.com"),
+      port: None,
+    }),
   )
   assert_eq(uri.path, [b"path", b"to", b"resource"])
   assert_eq(uri.query, Some(b"query=parameter"))
@@ -762,7 +766,11 @@ test "RFC 3986 Absolute URI Parsing" {
   assert_eq(uri.scheme, Some(b"http"))
   assert_eq(
     uri.authority,
-    Some(Authority::{ userinfo: None, host: RegName(b"example.com"), port: None }),
+    Some(Authority::{
+      userinfo: None,
+      host: RegName(b"example.com"),
+      port: None,
+    }),
   )
   assert_eq(uri.path, [b"path", b"to", b"resource"])
   assert_eq(uri.query, Some(b"query=parameter"))
