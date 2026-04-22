@@ -130,26 +130,28 @@ fn parse_scheme_or_segment_nz_nc(
 ) -> BytesView raise ParseError {
   let s = source
   let segment = s
-  loop s {
-    [b':', .. k] as s => {
-      uri.scheme = Some(source.slice_until(s))
-      parse_hier_part_then_query(k, uri)
+  for s = s {
+    match s {
+      [b':', .. k] as s => {
+        uri.scheme = Some(source.slice_until(s))
+        break parse_hier_part_then_query(k, uri)
+      }
+      [b'/', .. k] as s => {
+        uri.path.push(segment.slice_until(s))
+        break parse_path_abempty_then_query(k, uri)
+      }
+      [b'?', .. k] as s => {
+        uri.path.push(segment.slice_until(s))
+        break parse_query_then_fragment(k, uri)
+      }
+      [b'#', .. k] as s => {
+        uri.path.push(segment.slice_until(s))
+        break parse_query_then_fragment(k, uri)
+      }
+      [b, .. k] if is_unreserved_byte(b) || is_sub_delim_byte(b) || b == b'@' =>
+        continue k
+      _ => raise ParseError::InvalidSchemeOrSegment(source)
     }
-    [b'/', .. k] as s => {
-      uri.path.push(segment.slice_until(s))
-      parse_path_abempty_then_query(k, uri)
-    }
-    [b'?', .. k] as s => {
-      uri.path.push(segment.slice_until(s))
-      parse_query_then_fragment(k, uri)
-    }
-    [b'#', .. k] as s => {
-      uri.path.push(segment.slice_until(s))
-      parse_query_then_fragment(k, uri)
-    }
-    [b, .. k] if is_unreserved_byte(b) || is_sub_delim_byte(b) || b == b'@' =>
-      continue k
-    _ => raise ParseError::InvalidSchemeOrSegment(source)
   }
 }
 
@@ -197,18 +199,20 @@ pub fn Uri::parse(source : BytesView) -> Uri raise ParseError {
 fn parse_scheme(source : BytesView, uri : Uri) -> BytesView raise ParseError {
   match source {
     [b, .. k] if is_alpha_byte(b) =>
-      loop k {
-        [b, .. s] if is_alpha_byte(b) ||
-          is_digit_byte(b) ||
-          b == b'+' ||
-          b == b'-' ||
-          b == b'.' => continue s
-        [b':', .. k] as s => {
-          uri.scheme = Some(source.slice_until(s))
-          return k
+      for k = k {
+        match k {
+          [b, .. s] if is_alpha_byte(b) ||
+            is_digit_byte(b) ||
+            b == b'+' ||
+            b == b'-' ||
+            b == b'.' => continue s
+          [b':', .. k] as s => {
+            uri.scheme = Some(source.slice_until(s))
+            break k
+          }
+          [_, ..] as s => raise ParseError::InvalidScheme(s)
+          [] => raise ParseError::MissingColon
         }
-        [_, ..] as s => raise ParseError::InvalidScheme(s)
-        [] => raise ParseError::MissingColon
       }
     [_, ..] as s => raise ParseError::InvalidScheme(s)
     [] => raise ParseError::MissingScheme
@@ -237,16 +241,18 @@ fn parse_userinfo(
   authority : Authority,
 ) -> BytesView raise ParseError {
   let start = source
-  loop source {
-    [b'@', .. k] as s => {
-      authority.userinfo = Some(start.slice_until(s))
-      return k
+  for source = source {
+    match source {
+      [b'@', .. k] as s => {
+        authority.userinfo = Some(start.slice_until(s))
+        break k
+      }
+      [b'%', .. k] => continue parse_percent_encoding(k)
+      [b, .. k] if is_unreserved_byte(b) || is_sub_delim_byte(b) || b == b':' =>
+        continue k
+      [_, ..] as s => raise ParseError::InvalidHeirPart(s)
+      [] as s => break s
     }
-    [b'%', .. k] => continue parse_percent_encoding(k)
-    [b, .. k] if is_unreserved_byte(b) || is_sub_delim_byte(b) || b == b':' =>
-      continue k
-    [_, ..] as s => raise ParseError::InvalidHeirPart(s)
-    [] as s => return s
   }
 }
 
@@ -256,12 +262,14 @@ fn parse_reg_name(
   authority : Authority,
 ) -> BytesView raise ParseError {
   let s = source
-  loop s {
-    [b'%', ..] as s => continue parse_percent_encoding(s)
-    [b, .. k] if is_unreserved_byte(b) || is_sub_delim_byte(b) => continue k
-    _ as s => {
-      authority.host = Host::RegName(source.slice_until(s))
-      s
+  for s = s {
+    match s {
+      [b'%', ..] as s => continue parse_percent_encoding(s)
+      [b, .. k] if is_unreserved_byte(b) || is_sub_delim_byte(b) => continue k
+      _ as s => {
+        authority.host = Host::RegName(source.slice_until(s))
+        break s
+      }
     }
   }
 }
@@ -273,13 +281,15 @@ fn parse_ipv6_address(
 ) -> BytesView raise ParseError {
   // Simplified IPv6 parsing - match until ']'
   let s = source
-  loop s {
-    [b']', .. k] as s => {
-      authority.host = IPv6Address(source.slice_until(s))
-      k
+  for s = s {
+    match s {
+      [b']', .. k] as s => {
+        authority.host = IPv6Address(source.slice_until(s))
+        break k
+      }
+      [b, .. s] if is_hexdig_byte(b) || b == b':' || b == b'.' => continue s
+      _ as s => raise ParseError::InvalidHeirPart(s)
     }
-    [b, .. s] if is_hexdig_byte(b) || b == b':' || b == b'.' => continue s
-    _ as s => raise ParseError::InvalidHeirPart(s)
   }
 }
 
@@ -302,14 +312,16 @@ fn parse_port(source : BytesView, authority : Authority) -> BytesView {
   match source {
     [b':', .. k] => {
       let mut port_val = 0
-      loop k {
-        [d, .. s] if is_digit_byte(d) => {
-          port_val = port_val * 10 + (d.to_int() - '0')
-          continue s
-        }
-        _ as s => {
-          authority.port = Some(port_val)
-          return s
+      for k = k {
+        match k {
+          [d, .. s] if is_digit_byte(d) => {
+            port_val = port_val * 10 + (d.to_int() - b'0'.to_int())
+            continue s
+          }
+          _ as s => {
+            authority.port = Some(port_val)
+            break s
+          }
         }
       }
     }
@@ -333,10 +345,12 @@ fn parse_authority(source : BytesView, uri : Uri) -> BytesView raise ParseError 
 ///|
 fn parse_segment(source : BytesView) -> (BytesView, BytesView) raise ParseError {
   let start = source
-  loop source {
-    [b'%', .. k] => continue parse_percent_encoding(k)
-    [b, .. k] if is_pchar_byte(b) => continue k
-    _ as s => (s, start.slice_until(s))
+  for source = source {
+    match source {
+      [b'%', .. k] => continue parse_percent_encoding(k)
+      [b, .. k] if is_pchar_byte(b) => continue k
+      _ as s => break (s, start.slice_until(s))
+    }
   }
 }
 
@@ -349,12 +363,14 @@ fn parse_done(source : BytesView, _uri : Uri) -> BytesView {
 ///|
 fn parse_fragment(source : BytesView, uri : Uri) -> BytesView raise ParseError {
   let s = source
-  loop s {
-    [b'%', ..] as s => continue parse_percent_encoding(s)
-    [b, .. k] if is_pchar_byte(b) || b == b'/' || b == b'?' => continue k
-    [..] as s => {
-      uri.fragment = Some(source.slice_until(s))
-      return s
+  for s = s {
+    match s {
+      [b'%', ..] as s => continue parse_percent_encoding(s)
+      [b, .. k] if is_pchar_byte(b) || b == b'/' || b == b'?' => continue k
+      [..] as s => {
+        uri.fragment = Some(source.slice_until(s))
+        break s
+      }
     }
   }
 }
@@ -365,16 +381,18 @@ fn parse_query_then_fragment(
   uri : Uri,
 ) -> BytesView raise ParseError {
   let start = source
-  loop source {
-    [b'#', .. k] as s => {
-      uri.query = Some(start.slice_until(s))
-      parse_fragment(k, uri)
-    }
-    [b'%', ..] as s => continue parse_percent_encoding(s)
-    [b, .. k] if is_pchar_byte(b) || b == b'/' || b == b'?' => continue k
-    [..] as s => {
-      uri.query = Some(start.slice_until(s))
-      s
+  for source = source {
+    match source {
+      [b'#', .. k] as s => {
+        uri.query = Some(start.slice_until(s))
+        break parse_fragment(k, uri)
+      }
+      [b'%', ..] as s => continue parse_percent_encoding(s)
+      [b, .. k] if is_pchar_byte(b) || b == b'/' || b == b'?' => continue k
+      [..] as s => {
+        uri.query = Some(start.slice_until(s))
+        break s
+      }
     }
   }
 }
@@ -385,38 +403,40 @@ fn parse_path_abempty_then_query(
   uri : Uri,
 ) -> BytesView raise ParseError {
   let s = source
-  loop s {
-    [b'%', .. k] => continue parse_percent_encoding(k)
-    [b'/', .. k] as s => {
-      let segment = source.slice_until(s)
-      if segment != b"" {
-        uri.path.push(segment)
+  for s = s {
+    match s {
+      [b'%', .. k] => continue parse_percent_encoding(k)
+      [b'/', .. k] as s => {
+        let segment = source.slice_until(s)
+        if segment != b"" {
+          uri.path.push(segment)
+        }
+        break parse_path_abempty_then_query(k, uri)
       }
-      parse_path_abempty_then_query(k, uri)
-    }
-    [b'?', .. k] as s => {
-      let segment = source.slice_until(s)
-      if segment != b"" {
-        uri.path.push(segment)
+      [b'?', .. k] as s => {
+        let segment = source.slice_until(s)
+        if segment != b"" {
+          uri.path.push(segment)
+        }
+        break parse_query_then_fragment(k, uri)
       }
-      parse_query_then_fragment(k, uri)
-    }
-    [b'#', .. k] as s => {
-      let segment = source.slice_until(s)
-      if segment != b"" {
-        uri.path.push(segment)
+      [b'#', .. k] as s => {
+        let segment = source.slice_until(s)
+        if segment != b"" {
+          uri.path.push(segment)
+        }
+        break parse_fragment(k, uri)
       }
-      parse_fragment(k, uri)
-    }
-    [b, .. k] if is_pchar_byte(b) => continue k
-    [] as s => {
-      let segment = source.slice_until(s)
-      if segment != b"" {
-        uri.path.push(segment)
+      [b, .. k] if is_pchar_byte(b) => continue k
+      [] as s => {
+        let segment = source.slice_until(s)
+        if segment != b"" {
+          uri.path.push(segment)
+        }
+        break s
       }
-      s
+      [..] as s => raise ParseError::InvalidSegment(s)
     }
-    [..] as s => raise ParseError::InvalidSegment(s)
   }
 }
 
@@ -467,15 +487,17 @@ fn parse_path_abempty_then_query_no_fragment(
   uri : Uri,
 ) -> BytesView raise ParseError {
   let s = source
-  loop s {
-    [b'/', .. k] => {
-      let (remaining, segment_val) = parse_segment(k)
-      if segment_val != b"" {
-        uri.path.push(segment_val)
+  for s = s {
+    match s {
+      [b'/', .. k] => {
+        let (remaining, segment_val) = parse_segment(k)
+        if segment_val != b"" {
+          uri.path.push(segment_val)
+        }
+        continue remaining
       }
-      continue remaining
+      _ as s => break parse_query_no_fragment_or_done(s, uri)
     }
-    _ as s => parse_query_no_fragment_or_done(s, uri)
   }
 }
 
@@ -496,12 +518,14 @@ fn parse_query_no_fragment_then_done(
   uri : Uri,
 ) -> BytesView raise ParseError {
   let start = source
-  loop source {
-    [b'%', .. k] => continue parse_percent_encoding(k)
-    [b, .. k] if is_pchar_byte(b) || b == b'/' || b == b'?' => continue k
-    _ as s => {
-      uri.query = Some(start.slice_until(s))
-      parse_done(s, uri)
+  for source = source {
+    match source {
+      [b'%', .. k] => continue parse_percent_encoding(k)
+      [b, .. k] if is_pchar_byte(b) || b == b'/' || b == b'?' => continue k
+      _ as s => {
+        uri.query = Some(start.slice_until(s))
+        break parse_done(s, uri)
+      }
     }
   }
 }
