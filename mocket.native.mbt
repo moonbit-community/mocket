@@ -184,7 +184,7 @@ fn handle_request_native(
     _ => ({}, handle_not_found())
   }
   let event = {
-    req: { http_method, url, raw_body: "", headers: req_headers },
+    req: { http_method, url, raw_body: b"", headers: req_headers },
     res: HttpResponse::new(OK),
     params,
   }
